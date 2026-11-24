@@ -120,10 +120,19 @@ class PresidioWrapper:
         self.analyzer = None
         try:
             from presidio_analyzer import AnalyzerEngine
-            self.analyzer = AnalyzerEngine()
+            from presidio_analyzer.nlp_engine import NlpEngineProvider
+            provider = NlpEngineProvider(nlp_configuration={
+                "nlp_engine_name": "spacy",
+                "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
+            })
+            self.analyzer = AnalyzerEngine(nlp_engine=provider.create_engine())
             self.available = True
         except Exception:
-            pass
+            try:
+                self.analyzer = AnalyzerEngine()
+                self.available = True
+            except Exception:
+                pass
 
     def predict(self, text: str) -> List[Dict[str, Any]]:
         if not self.available:

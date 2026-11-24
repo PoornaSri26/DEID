@@ -53,8 +53,9 @@ def predicted_spans(pipeline, text: str, lang: str) -> list:
 
 
 def main() -> int:
+    use_presidio = "--presidio" in sys.argv
     config = IntegratedPipeline.Config(
-        use_giner=False, use_llm=False, enable_timing=False, use_presidio=False
+        use_giner=False, use_llm=False, enable_timing=False, use_presidio=use_presidio
     )
     pipeline = IntegratedPipeline(config)
 
