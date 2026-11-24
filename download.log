@@ -1,0 +1,49 @@
+============================================================
+Downloading Meddies-PII v2 dataset from Hugging Face...
+============================================================
+Fetching 34 files:   0%|          | 0/34 [00:00<?, ?it/s]C:\Users\npoor\AppData\Roaming\Python\Python313\site-packages\huggingface_hub\file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Fetching 34 files:  97%|#########7| 33/34 [00:10<00:00,  3.30it/s]Fetching 34 files: 100%|##########| 34/34 [05:41<00:00, 10.05s/it]Fetching 34 files: 100%|##########| 34/34 [05:41<00:00, 10.05s/it]
+
+Dataset downloaded to: ./data/meddies-pii\models--Meddies--meddies-pii-v2\snapshots\3692c3067b4197a8145a120ce56526ad0479d73e
+
+Available configs:
+  - english (English clinical documents)
+  - tamil (Tamil clinical documents)
+  - vietnamese, chinese, japanese, korean, thai
+  - and 12 other languages
+
+============================================================
+Download complete! You can now:
+1. Explore the data: python -c "from datasets import load_dataset; ds = load_dataset('Meddies/meddies-pii-v2', 'english'); print(ds['train'][:2])"
+2. Start training baselines
+3. Run the hybrid pipeline
+============================================================
+
+Dataset ready at: ./data/meddies-pii\models--Meddies--meddies-pii-v2\snapshots\3692c3067b4197a8145a120ce56526ad0479d73e
+
+Next steps:
+  - Browse: https://huggingface.co/datasets/Meddies/meddies-pii-v2
+  - Check label format in dataset card
+  - Run: python -m pipelines.hybrid_pipeline_demo
+Meddies--meddies-pii-v2\snapshots\3692c3067b4197a8145a120ce56526ad0479d73e
+
+Available configs:
+  - english (English clinical documents)
+  - tamil (Tamil clinical documents)
+  - vietnamese, chinese, japanese, korean, thai
+  - and 12 other languages
+
+============================================================
+Download complete! You can now:
+1. Explore the data: python -c "from datasets import load_dataset; ds = load_dataset('Meddies/meddies-pii-v2', 'english'); print(ds['train'][:2])"
+2. Start training baselines
+3. Run the hybrid pipeline
+============================================================
+
+Dataset ready at: ./data/meddies-pii\models--Meddies--meddies-pii-v2\snapshots\3692c3067b4197a8145a120ce56526ad0479d73e
+
+Next steps:
+  - Browse: https://huggingface.co/datasets/Meddies/meddies-pii-v2
+  - Check label format in dataset card
+  - Run: python -m pipelines.hybrid_pipeline_demo
