@@ -71,6 +71,16 @@ def test_placeholder_mapping():
     assert p._get_placeholder("unknown_type") == "[REDACTED]"
 
 
+def test_presidio_flag_degrades_without_package():
+    # Presidio isn't a hard dep; pipeline must run identically with flag on
+    config = IntegratedPipeline.Config(
+        use_giner=False, use_llm=False, enable_timing=False, use_presidio=True
+    )
+    p = IntegratedPipeline(config)
+    result = p.run_full_pipeline("John Doe, phone 9848012345", "en")
+    assert "[REDACTED_NAME]" in result["deidentified_text"]
+
+
 def test_heuristic_verify():
     assert heuristic_verify("9848012345", "") ["sensitive"] == "yes"
     assert heuristic_verify("98480 12345", "") ["sensitive"] == "yes"

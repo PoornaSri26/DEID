@@ -96,6 +96,55 @@ class LlamaCPPWrapper:
             return heuristic_verify(span_text, context_sentence)
 
 
+class PresidioWrapper:
+    """Optional Presidio analyzer as a secondary detector."""
+
+    _TYPE_MAP = {
+        "PERSON": "human_name",
+        "DATE_TIME": "date",
+        "EMAIL_ADDRESS": "email_address",
+        "PHONE_NUMBER": "phone_number",
+        "URL": "private_url",
+        "IP_ADDRESS": "private_url",
+        "LOCATION": "address",
+        "ORGANIZATION": "company_name",
+        "NRP": "human_name",
+        "US_SSN": "id_number",
+        "CREDIT_CARD": "id_number",
+        "IBAN_CODE": "id_number",
+        "CRYPTO": "id_number",
+    }
+
+    def __init__(self):
+        self.available = False
+        self.analyzer = None
+        try:
+            from presidio_analyzer import AnalyzerEngine
+            self.analyzer = AnalyzerEngine()
+            self.available = True
+        except Exception:
+            pass
+
+    def predict(self, text: str) -> List[Dict[str, Any]]:
+        if not self.available:
+            return []
+        try:
+            results = self.analyzer.analyze(text=text, language="en")
+        except Exception:
+            return []
+        entities = []
+        for r in results:
+            entities.append({
+                "text": text[r.start:r.end],
+                "start": r.start,
+                "end": r.end,
+                "type": self._TYPE_MAP.get(r.entity_type, "unknown"),
+                "confidence": float(r.score),
+                "source": "presidio",
+            })
+        return entities
+
+
 def heuristic_verify(span_text: str, context_sentence: str) -> Dict[str, str]:
     """Heuristic verification (used when LLM not available)."""
     span_lower = span_text.lower().strip()
@@ -158,12 +207,14 @@ class IntegratedPipeline:
                      giner_threshold: float = 0.5,
                      giner_model_path: Optional[str] = None,
                      use_llm: bool = True,
+                     use_presidio: bool = False,
                      enable_timing: bool = True,
                      supported_languages: List[str] = None):
             self.use_giner = use_giner
             self.giner_threshold = giner_threshold
             self.giner_model_path = giner_model_path
             self.use_llm = use_llm
+            self.use_presidio = use_presidio
             self.enable_timing = enable_timing
             self.supported_languages = supported_languages or ["en", "ta"]
 
@@ -181,6 +232,9 @@ class IntegratedPipeline:
 
         # Initialize LLM wrapper
         self.llm = LlamaCPPWrapper()
+
+        # Optional Presidio secondary detector
+        self.presidio = PresidioWrapper() if config.use_presidio else None
 
         # Custom patterns registry
         # Covers remaining Meddies-PII categories not matched by default regexes:
@@ -230,6 +284,16 @@ class IntegratedPipeline:
             if key not in seen_keys:
                 seen_keys.add(key)
                 merged.append(e)
+
+        # Optional Presidio detections (overlap resolution happens in stage 3)
+        if self.presidio is not None:
+            for e in self.presidio.predict(text):
+                if e["type"] == "unknown":
+                    continue
+                key = (e.get("start", 0), e.get("end", 0), e.get("type", "unknown"))
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    merged.append(e)
 
         return merged
 
@@ -336,7 +400,7 @@ class IntegratedPipeline:
             # kept regardless; verification mainly filters NER spans.
             is_sensitive = (
                 result.get("sensitive") == "yes"
-                or entity.get("source") in ("rule", "custom")
+                or entity.get("source") in ("rule", "custom", "presidio")
             )
             if is_sensitive:
                 verified.append({

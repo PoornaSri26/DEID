@@ -187,36 +187,40 @@ def compute_micro_macro_f1(
 
 
 def compute_false_redaction_rate(
+    gold_entities: List[Tuple[int, int, str]],
     pred_entities: List[Tuple[int, int, str]],
-    non_pi_text: str,
-    unit: str = "span",
-) -> float:
+    match_type: str = "entity",
+) -> Dict[str, Any]:
     """
     Compute false redaction rate.
-    
-    Fraction of non-sensitive content wrongly removed, divided by all non-sensitive content.
-    
+
+    A predicted entity is a false redaction when it does not match any gold
+    entity — i.e. non-sensitive content was wrongly removed.
+
+    FRR = FP / (TP + FP): fraction of redacted spans that were not PHI.
+    This is equivalent to 1 - precision at the span level.
+
     Args:
-        pred_entities: Predicted PHI spans (start, end, type)
-        non_pi_text: The original non-sensitive text (or de-identified text analysis)
-        unit: "span", "token", or "character" - what unit to measure against
-    
+        gold_entities: List of (start, end, type) from ground truth
+        pred_entities: List of (start, end, type) from prediction
+        match_type: "entity" or "token"
+
     Returns:
-        False redaction rate as float (0.0 to 1.0)
+        Dict with false_redaction_rate, tp, fp, fn, total_predicted
     """
-    if unit == "span":
-        # Count of spans that are not true PHI
-        # Simplified: assume all predicted entities that shouldn't be redacted
-        # In practice, would compare against gold non-PHI spans
-        total_predicted = len(pred_entities)
-        if total_predicted == 0:
-            return 0.0
-        # Placeholder: count how many might be false redactions
-        # This requires knowing which should NOT have been redacted
-        false_count = 0  # Would need gold non-PHI comparison
-        return false_count / total_predicted if total_predicted > 0 else 0.0
-    
-    return 0.0
+    metrics = compute_entity_metrics(gold_entities, pred_entities, match_type)
+    tp, fp = metrics["tp"], metrics["fp"]
+    total_predicted = tp + fp
+
+    frr = fp / total_predicted if total_predicted > 0 else 0.0
+
+    return {
+        "false_redaction_rate": round(frr, 4),
+        "tp": tp,
+        "fp": fp,
+        "fn": metrics["fn"],
+        "total_predicted": total_predicted,
+    }
 
 
 def compute_clinical_utility_survival(

@@ -28,6 +28,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Language code (default: en)")
     parser.add_argument("--giner", action="store_true",
                         help="Enable GlNER NER (requires model path / gliner installed)")
+    parser.add_argument("--presidio", action="store_true",
+                        help="Enable Presidio as secondary detector (optional dep)")
     parser.add_argument("--model-path", default=None, help="Path to GlNER model")
     parser.add_argument("--json", action="store_true", help="Output full result as JSON")
     return parser
@@ -47,6 +49,7 @@ def main(argv=None) -> int:
     config = IntegratedPipeline.Config(
         use_giner=args.giner,
         giner_model_path=args.model_path,
+        use_presidio=args.presidio,
         use_llm=False,
         enable_timing=False,
     )

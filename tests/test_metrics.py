@@ -5,6 +5,7 @@ from src.evaluation.metrics import (
     compute_micro_macro_f1,
     compute_per_category_f1,
     compute_clinical_utility_survival,
+    compute_false_redaction_rate,
 )
 
 
@@ -49,6 +50,17 @@ def test_per_category_f1():
     per_cat = compute_per_category_f1(all_gold, all_pred)
     assert per_cat["name"]["f1"] == 1.0
     assert per_cat["date"]["f1"] == 1.0
+
+
+def test_false_redaction_rate():
+    gold = [(0, 4, "name"), (10, 14, "date")]
+    pred = [(0, 4, "name"), (10, 14, "date"), (20, 25, "name")]  # one FP
+    res = compute_false_redaction_rate(gold, pred)
+    assert res["tp"] == 2 and res["fp"] == 1
+    assert res["false_redaction_rate"] == round(1 / 3, 4)
+
+    res_none = compute_false_redaction_rate([], [])
+    assert res_none["false_redaction_rate"] == 0.0
 
 
 def test_clinical_utility_survival():
