@@ -271,6 +271,7 @@ class IntegratedPipeline:
             self.giner_model_path = giner_model_path
             self.use_llm = use_llm
             self.use_presidio = use_presidio
+            self.meddies_model_path = meddies_model_path
             self.enable_timing = enable_timing
             self.supported_languages = supported_languages or ["en", "ta"]
 
