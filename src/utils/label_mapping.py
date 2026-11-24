@@ -31,7 +31,7 @@ Seven entity families (stable across languages):
 - company_name
 """
 
-from typing import Dict, List, Set, Optional, Tuple
+from typing import Any, Dict, List, Set, Optional, Tuple
 from collections import defaultdict
 
 
@@ -109,9 +109,10 @@ class LabelMapper:
     @classmethod
     def meddies_to_i2b2_label(cls, meddies_label: str) -> str:
         """Convert Meddies-PII label to i2b2 category."""
-        # First check direct family mapping
-        family = cls.meddies_to_i2b2_family(meddies_label)
-        return cls.FAMILY_TO_I2B2.get(family, "ID")  # Default
+        # meddies_to_i2b2_family already returns i2b2 category names
+        # (NAME, DATE, CONTACT, ...); the previous version looked those up
+        # in FAMILY_TO_I2B2 (keyed by family names) and always fell back to "ID".
+        return cls.meddies_to_i2b2_family(meddies_label)
     
     @classmethod
     def meddies_to_i2b2_family(cls, meddies_label: str) -> str:
