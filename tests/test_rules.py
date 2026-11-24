@@ -29,7 +29,7 @@ def test_phone_country_code():
 
 
 def test_date_formats():
-    for text in ["on 01/15/2026", "on 2026-03-12", "on 12 March 2026", "on March 12, 2026"]:
+    for text in ["on 01/15/2026", "on 2026-03-12", "on 14-02-2026", "on 12 March 2026", "on March 12, 2026"]:
         _, detected = apply_rules_simple(text)
         assert "date" in types_of(detected), f"no date detected in: {text}"
 
@@ -49,6 +49,25 @@ def test_human_name():
     names = [d for d in detected if d["type"] == "human_name"]
     assert len(names) == 1
     assert names[0]["text"] == "John Doe"
+
+
+def test_honorific_does_not_swallow_first_name():
+    _, detected = apply_rules_simple("Patient Maria Santos was admitted.")
+    names = [d for d in detected if d["type"] == "human_name"]
+    assert any(n["text"] == "Maria Santos" for n in names)
+
+
+def test_dr_honorific():
+    _, detected = apply_rules_simple("Dr John Smith saw the patient.")
+    names = [d for d in detected if d["type"] == "human_name"]
+    assert any(n["text"] == "John Smith" for n in names)
+
+
+def test_phone_7_digit():
+    _, detected = apply_rules_simple("Phone: 555-0199 for follow-up.")
+    phones = [d for d in detected if d["type"] == "phone_number"]
+    assert len(phones) == 1
+    assert phones[0]["text"] == "555-0199"
 
 
 def test_replacement_preserves_positions():

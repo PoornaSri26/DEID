@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Try to import GLiNER, fall back to demo mode if not available
 try:
-    from GLiNER import GLiNER
+    from gliner import GLiNER
     GLiNER_AVAILABLE = True
 except ImportError:
     GLiNER_AVAILABLE = False

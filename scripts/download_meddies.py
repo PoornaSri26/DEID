@@ -14,16 +14,13 @@ def download_meddies_pii():
     # Download the dataset
     path = snapshot_download(
         "Meddies/meddies-pii-v2",
-        resume_download=True,
-        cache_dir="./data/meddies-pii",
-        local_dir_use_symlinks=False
+        local_dir="./data/meddies-pii"
     )
     
     print(f"\nDataset downloaded to: {path}")
     print("\nAvailable configs:")
     
     # List available configs
-    from huggingface_hub import list_models
     # Just show what's typically available
     print("  - english (English clinical documents)")
     print("  - tamil (Tamil clinical documents)")
@@ -51,4 +48,4 @@ if __name__ == "__main__":
     print("\nNext steps:")
     print("  - Browse: https://huggingface.co/datasets/Meddies/meddies-pii-v2")
     print("  - Check label format in dataset card")
-    print("  - Run: python -m pipelines.hybrid_pipeline_demo")
+    print("  - Run demo: python src/run_demo.py")

@@ -55,6 +55,18 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
                 "source": "rule"
             })
 
+    # 4. 7-digit local format: 555-0199
+    phone_pattern4 = r'(\b\d{3}-\d{4}\b)'
+    for m in re.finditer(phone_pattern4, text):
+        if not any(m.start() >= d["start"] and m.end() <= d["end"] for d in detected):
+            detected.append({
+                "text": m.group(1),
+                "start": m.start(),
+                "end": m.end(),
+                "type": "phone_number",
+                "source": "rule"
+            })
+
     # Date patterns
     # 1. DD/MM/YYYY: 12/03/2026
     date_pattern1 = r'(\d{2}/\d{2}/\d{4})'
@@ -66,6 +78,18 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             "type": "date",
             "source": "rule"
         })
+
+    # 1b. DD-MM-YYYY: 14-02-2026
+    date_pattern1b = r'(\d{2}-\d{2}-\d{4})'
+    for m in re.finditer(date_pattern1b, text):
+        if not any(m.start() >= d["start"] and m.end() <= d["end"] for d in detected if d["type"] == "date"):
+            detected.append({
+                "text": m.group(1),
+                "start": m.start(),
+                "end": m.end(),
+                "type": "date",
+                "source": "rule"
+            })
 
     # 2. YYYY-MM-DD: 2026-03-12
     date_pattern2 = r'(\d{4}-\d{2}-\d{2})'
@@ -139,9 +163,10 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             })
 
     # Human names: capitalized proper nouns in clinical context
-    # Pattern: two capitalized words (first/last name)
-    # Handles: John Smith, Margaret R. Thompson (via NER fallback)
-    name_pattern = r'([A-Z][a-z]+\s+[A-Z][a-z]+)'
+    # Pattern: optional leading honorific (Patient/Dr/Mr/Mrs/Ms) followed by
+    # two capitalized words. The honorific is consumed by the optional group
+    # so it doesn't swallow the first name (e.g. "Patient Maria Santos").
+    name_pattern = r'(?:\b(?:Patient|Dr|Mr|Mrs|Ms)\s+)?([A-Z][a-z]+\s+[A-Z][a-z]+)'
     for m in re.finditer(name_pattern, text):
         name_text = m.group(1)
         # Filter: skip very short names, common phrases
@@ -156,8 +181,8 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             continue
         detected.append({
             "text": name_text,
-            "start": m.start(),
-            "end": m.end(),
+            "start": m.start(1),
+            "end": m.end(1),
             "type": "human_name",
             "confidence": 0.7,
             "source": "rule"

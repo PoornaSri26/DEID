@@ -18,6 +18,12 @@ sys.path.insert(0, ".")  # Ensure CWD is in path for 'pipelines' package
 import time
 import json
 
+# Allow printing non-ASCII (e.g. Tamil) on Windows consoles
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 from pipelines.hybrid_pipeline_integrated import IntegratedPipeline
 from src.evaluation.metrics import (
     compute_micro_macro_f1,
@@ -176,7 +182,14 @@ def run_evaluation():
     print()
 
     # Select the best-performing config for presentation
-    best_cfg = max(all_results.keys(), key=lambda k: all_results[k]["english"]["total_entities"] + all_results[k]["tamil"]["total_entities"])
+    def _entity_count(cfg_results):
+        return sum(
+            r["total_entities"]
+            for lang in ("english", "tamil")
+            for r in cfg_results[lang]["results"]
+        )
+
+    best_cfg = max(all_results.keys(), key=lambda k: _entity_count(all_results[k]))
 
     best = all_results[best_cfg]
     en = best["english"]

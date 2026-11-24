@@ -1,4 +1,12 @@
 """
+DEPRECATED: Legacy 5-stage hybrid pipeline orchestrator.
+
+Superseded by pipelines/hybrid_pipeline_integrated.py (IntegratedPipeline),
+which is the canonical, tested implementation. This module's stage-1 output
+(pre-replaced text) is inconsistent with the span positions used by later
+stages, so its output can be corrupted. Kept for reference only.
+
+Original description:
 Stage 3-5: Hybrid Pipeline Orchestrator.
 
 Combines:
