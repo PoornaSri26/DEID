@@ -131,6 +131,7 @@ class LabelMapper:
     
     @classmethod
     def get_mapped_entities(
+        cls,
         i2b2_entities: List[Dict[str, Any]],
         mapping: str = "i2b2-to-meddies"
     ) -> List[Dict[str, Any]]:
@@ -178,7 +179,7 @@ class LabelMapper:
             
             elif mapping == "meddies-to-i2b2":
                 # Map Meddies label to i2b2 category
-                i2b2_cat = cls.meddies_to_i2b2_family(ent_type)
+                i2b2_cat = cls.meddies_to_i2b2_family(ent_type.lower())
                 mapped.append({
                     "text": ent_text,
                     "start": ent_start,
@@ -191,6 +192,7 @@ class LabelMapper:
     
     @classmethod
     def compute_label_coverage(
+        cls,
         gold_entities: List[Dict[str, Any]],
         source_schema: str = "i2b2",
         target_schema: str = "meddies"
