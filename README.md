@@ -108,4 +108,4 @@ CC BY-NC 4.0 (non-commercial research use) - same as Meddies-PII v2
 - i2b2 access requires separate Data Use Agreement (per-person, Harvard DBMI portal)
 - Results on Meddies-PII are on synthetic data; real-note validation via i2b2 when available
 - Tamil coverage in Meddies-PII is limited (~15K-20.5K documents, one Indian language)
-- Always report both synthetic and (if available) real-note results transparently
+- Always report both synthetic and (if available) real-note results transparently# DEID
