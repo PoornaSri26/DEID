@@ -1,6 +1,7 @@
 """Integrated 5-stage hybrid de-identification pipeline with GlNER + Llama.cpp support."""
 
 from typing import Optional, List, Dict, Any
+from pathlib import Path
 import re
 import time
 
@@ -154,6 +155,51 @@ class PresidioWrapper:
         return entities
 
 
+class MeddiesModelWrapper:
+    """Meddies PII v2 token-classification model (HF snapshot, custom code)."""
+
+    def __init__(self, model_path: Optional[str] = None, device: str = "cpu"):
+        self.available = False
+        self.model = None
+        if not model_path:
+            return
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "modeling_meddies_pii", str(Path(model_path) / "modeling_meddies_pii.py")
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            self.model = mod.MeddiesPiiExtractor.from_pretrained(model_path, device=device)
+            self.available = True
+        except Exception as e:
+            print(f"[WARN] Meddies model load failed: {e}")
+
+    def predict(self, text: str) -> List[Dict[str, Any]]:
+        if not self.available:
+            return []
+        try:
+            spans = self.model.extract(text)
+        except Exception:
+            return []
+        entities = []
+        for s in spans:
+            start = getattr(s, "start", s.get("start") if isinstance(s, dict) else None)
+            end = getattr(s, "end", s.get("end") if isinstance(s, dict) else None)
+            label = getattr(s, "label", s.get("label", s.get("category")) if isinstance(s, dict) else None)
+            if start is None or end is None or label is None:
+                continue
+            entities.append({
+                "text": text[start:end],
+                "start": int(start),
+                "end": int(end),
+                "type": str(label).lower(),
+                "confidence": 1.0,
+                "source": "meddies_model",
+            })
+        return entities
+
+
 def heuristic_verify(span_text: str, context_sentence: str) -> Dict[str, str]:
     """Heuristic verification (used when LLM not available)."""
     span_lower = span_text.lower().strip()
@@ -217,6 +263,7 @@ class IntegratedPipeline:
                      giner_model_path: Optional[str] = None,
                      use_llm: bool = True,
                      use_presidio: bool = False,
+                     meddies_model_path: Optional[str] = None,
                      enable_timing: bool = True,
                      supported_languages: List[str] = None):
             self.use_giner = use_giner
@@ -244,6 +291,12 @@ class IntegratedPipeline:
 
         # Optional Presidio secondary detector
         self.presidio = PresidioWrapper() if config.use_presidio else None
+
+        # Optional Meddies PII v2 model detector
+        self.meddies_model = (
+            MeddiesModelWrapper(model_path=config.meddies_model_path)
+            if config.meddies_model_path else None
+        )
 
         # Custom patterns registry
         # Covers remaining Meddies-PII categories not matched by default regexes:
@@ -293,6 +346,16 @@ class IntegratedPipeline:
             if key not in seen_keys:
                 seen_keys.add(key)
                 merged.append(e)
+
+        # Optional Meddies model detections
+        if self.meddies_model is not None:
+            for e in self.meddies_model.predict(text):
+                if e["type"] == "unknown":
+                    continue
+                key = (e.get("start", 0), e.get("end", 0), e.get("type", "unknown"))
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    merged.append(e)
 
         # Optional Presidio detections (overlap resolution happens in stage 3)
         if self.presidio is not None:
@@ -409,7 +472,7 @@ class IntegratedPipeline:
             # kept regardless; verification mainly filters NER spans.
             is_sensitive = (
                 result.get("sensitive") == "yes"
-                or entity.get("source") in ("rule", "custom", "presidio")
+                or entity.get("source") in ("rule", "custom", "presidio", "meddies_model")
             )
             if is_sensitive:
                 verified.append({

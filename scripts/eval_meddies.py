@@ -54,8 +54,18 @@ def predicted_spans(pipeline, text: str, lang: str) -> list:
 
 def main() -> int:
     use_presidio = "--presidio" in sys.argv
+    meddies_model = None
+    if "--model" in sys.argv:
+        hits = list(CACHE_MODEL.glob("*/snapshots/*/")) if False else None
+        import glob as _g
+        snaps = _g.glob(str(Path.home() / ".cache/huggingface/hub/models--Meddies--meddies-pii-v2/snapshots/*/"))
+        local = ROOT / "data/meddies-pii/models--Meddies--meddies-pii-v2/snapshots"
+        snaps += [str(p) for p in local.glob("*/")]
+        meddies_model = snaps[0] if snaps else None
+        print(f"model path: {meddies_model}")
     config = IntegratedPipeline.Config(
-        use_giner=False, use_llm=False, enable_timing=False, use_presidio=use_presidio
+        use_giner=False, use_llm=False, enable_timing=False,
+        use_presidio=use_presidio, meddies_model_path=meddies_model,
     )
     pipeline = IntegratedPipeline(config)
 
