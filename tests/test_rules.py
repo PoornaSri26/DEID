@@ -107,6 +107,15 @@ def test_tamil_name_after_marker():
     assert len(names) >= 1
 
 
+def test_email_wins_over_name_overlap():
+    # "John Doe@test.com": name match "John Doe" overlaps email "Doe@test.com".
+    # The structured email entity must win so "@test.com" isn't leaked.
+    _, detected = apply_rules_simple("Email John Doe@test.com now")
+    emails = [d for d in detected if d["type"] == "email_address"]
+    assert len(emails) == 1
+    assert emails[0]["text"] == "Doe@test.com"
+
+
 def test_replacement_preserves_positions():
     text = "John Doe admitted on 01/15/2026, MRN 987654321."
     final, detected = apply_rules_simple(text)

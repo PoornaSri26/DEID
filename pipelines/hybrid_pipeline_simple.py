@@ -303,11 +303,22 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             "source": "rule"
         })
 
-    # Resolve overlaps across all detections: keep the earliest-starting,
-    # then longest span; drop anything overlapping an already-kept entity.
-    # Prevents e.g. "+91-98480-12345" and its inner "98480-12345" both
-    # being replaced (which would corrupt positions).
-    detected.sort(key=lambda d: (d["start"], -(d["end"] - d["start"]), -(d.get("confidence") or 0)))
+    # Resolve overlaps across all detections. Type priority decides first
+    # (structured identifiers beat name guesses — prevents e.g. a name match
+    # inside an email local part from leaking "@domain.com"), then earliest
+    # start, longest span, highest confidence.
+    type_priority = {
+        "email_address": 0, "phone_number": 0, "date": 0,
+        "id_number": 0, "secret": 0, "private_url": 0,
+        "company_name": 1, "address": 1, "age": 1,
+        "human_name": 2,
+    }
+    detected.sort(key=lambda d: (
+        type_priority.get(d["type"], 1),
+        d["start"],
+        -(d["end"] - d["start"]),
+        -(d.get("confidence") or 0),
+    ))
     deduped = []
     for d in detected:
         if any(d["start"] < k["end"] and d["end"] > k["start"] for k in deduped):

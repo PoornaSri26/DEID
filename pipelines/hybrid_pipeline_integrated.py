@@ -117,8 +117,22 @@ def heuristic_verify(span_text: str, context_sentence: str) -> Dict[str, str]:
             or re.search(r'[A-Za-z]+\s+\d{1,2},?\s+\d{4}', span_text)):
         return {"sensitive": "yes", "type": "date"}
 
-    # Name-like patterns: capitalized multi-word spans (proper-noun casing)
-    if re.match(r'^[A-Z][A-Za-z]*(?:[\s-][A-Za-z]+)*$', span_text) and len(span_text.split()) >= 2:
+    # Organization / facility names
+    if re.search(r'\b(?:Hospital|Clinic|Medical\s*Center|Healthcare|Diagnostics?|Pharmacy|Nursing\s*Home)\b', span_text, re.IGNORECASE):
+        return {"sensitive": "yes", "type": "company_name"}
+
+    # Ages
+    if re.match(r'^\d{1,3}\s*[-\s]?(?:years?|yrs?)\b|^\d{1,3}\s*y/?o$', span_text, re.IGNORECASE):
+        return {"sensitive": "yes", "type": "age"}
+
+    # Name-like patterns: multi-word or single capitalized proper noun
+    if re.match(r'^[A-Z][A-Za-z]*(?:[\s-][A-Za-z]+)+$', span_text) and len(span_text.split()) >= 2:
+        return {"sensitive": "yes", "type": "human_name"}
+    if re.match(r'^[A-Z][a-z]{2,}$', span_text):
+        return {"sensitive": "yes", "type": "human_name"}
+
+    # Non-Latin script spans (e.g. Tamil names) — conservatively sensitive
+    if re.search(r'[^\x00-\x7F]', span_text) and len(span_text.strip()) >= 2:
         return {"sensitive": "yes", "type": "human_name"}
 
     # MRN/ID patterns
