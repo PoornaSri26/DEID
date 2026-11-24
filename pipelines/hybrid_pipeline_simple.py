@@ -21,7 +21,7 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
 
     # Phone numbers: multiple formats
     # 1. 10 digits without separator: 9848012345
-    phone_pattern1 = r'([6-9]\d{9})'
+    phone_pattern1 = r'(\b[6-9]\d{9}\b)'
     for m in re.finditer(phone_pattern1, text):
         detected.append({
             "text": m.group(0),
@@ -31,8 +31,8 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             "source": "rule"
         })
 
-    # 2. Digits with space separator: 98480 12345 (5+5 format common in Indian numbers)
-    phone_pattern2 = r'([6-9]\d{4}[- ]\d{4})'
+    # 2. Digits with space/hyphen separator: 98480 12345, 98480-12345 (5+5 format)
+    phone_pattern2 = r'(\b[6-9]\d{4}[- ]\d{5}\b)'
     for m in re.finditer(phone_pattern2, text):
         if not any(m.start() >= d["start"] and m.end() <= d["end"] for d in detected):
             detected.append({
@@ -43,8 +43,8 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
                 "source": "rule"
             })
 
-    # 3. Phone with country code: +1-984-801-2345
-    phone_pattern3 = r'(\+\d{1,3}[- ]?\d{3}[- ]?\d{3}[- ]?\d{4})'
+    # 3. Phone with country code: +1-984-801-2345, +91-98480-12345, +919848012345
+    phone_pattern3 = r'(\+\d{1,3}[- ]?(?:\d{5}[- ]?\d{5}|\d{3}[- ]?\d{3}[- ]?\d{4}|\d{10}))'
     for m in re.finditer(phone_pattern3, text):
         if not any(m.start() >= d["start"] and m.end() <= d["end"] for d in detected):
             detected.append({
@@ -116,7 +116,7 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             })
 
     # ID numbers: 8-12 digit sequences (likely MRN, Aadhaar, etc.)
-    id_pattern = r'(\d{8,12})'
+    id_pattern = r'(\b\d{8,12}\b)'
     for m in re.finditer(id_pattern, text):
         # Filter out things already detected as dates or phones
         is_duplicate = False
@@ -187,7 +187,21 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             "type": "human_name",
             "confidence": 0.7,
             "source": "rule"
-        })# Apply replacements (placeholders)
+        })
+
+    # Resolve overlaps across all detections: keep the earliest-starting,
+    # then longest span; drop anything overlapping an already-kept entity.
+    # Prevents e.g. "+91-98480-12345" and its inner "98480-12345" both
+    # being replaced (which would corrupt positions).
+    detected.sort(key=lambda d: (d["start"], -(d["end"] - d["start"])))
+    deduped = []
+    for d in detected:
+        if any(d["start"] < k["end"] and d["end"] > k["start"] for k in deduped):
+            continue
+        deduped.append(d)
+    detected = deduped
+
+    # Apply replacements (placeholders)
     final_text = text
     # Sort by start position descending to replace right-to-left
     detected.sort(key=lambda x: -x["start"])

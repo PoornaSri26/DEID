@@ -1,1 +1,24 @@
-data/meddies-pii/models--Meddies--meddies-pii-v2/
+# Data & models
+data/
+*.ckpt
+*.bin
+*.safetensors
+*.gguf
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Logs & outputs
+*.log
+notebooks/checkpoints/
+mlruns/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

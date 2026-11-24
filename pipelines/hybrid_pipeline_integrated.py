@@ -101,20 +101,24 @@ def heuristic_verify(span_text: str, context_sentence: str) -> Dict[str, str]:
     span_lower = span_text.lower().strip()
     context_lower = context_sentence.lower()
 
-    # Phone patterns
-    if re.match(r'^[6-9]\d{9}$', span_text) or re.match(r'^\+\d{10,12}$', span_text):
+    # Phone patterns (10-12 digits, optional separators/country code)
+    digits = re.sub(r'\D', '', span_text)
+    if re.match(r'^\+?[\d][\d\s().-]{7,}\d$', span_text) and 10 <= len(digits) <= 15:
         return {"sensitive": "yes", "type": "phone_number"}
 
     # Email patterns
     if re.match(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$', span_text):
         return {"sensitive": "yes", "type": "email_address"}
 
-    # Date patterns (various formats)
-    if re.search(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', span_text) or re.search(r'\d{4}[/-]\d{1,2}[/-]\d{1,2}', span_text):
+    # Date patterns (numeric and month-name formats)
+    if (re.search(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', span_text)
+            or re.search(r'\d{4}[/-]\d{1,2}[/-]\d{1,2}', span_text)
+            or re.search(r'\d{1,2}\s+[A-Za-z]+\s+\d{4}', span_text)
+            or re.search(r'[A-Za-z]+\s+\d{1,2},?\s+\d{4}', span_text)):
         return {"sensitive": "yes", "type": "date"}
 
-    # Name-like patterns (simple heuristic)
-    if re.match(r'^[A-Za-z]+(?:[\s-][A-Za-z]+)*$', span_text) and len(span_text.split()) >= 2:
+    # Name-like patterns: capitalized multi-word spans (proper-noun casing)
+    if re.match(r'^[A-Z][A-Za-z]*(?:[\s-][A-Za-z]+)*$', span_text) and len(span_text.split()) >= 2:
         return {"sensitive": "yes", "type": "human_name"}
 
     # MRN/ID patterns
@@ -313,8 +317,14 @@ class IntegratedPipeline:
             else:
                 result = heuristic_verify(span, context)
 
-            # Only keep verified PII entities
-            if result.get("sensitive", False):
+            # heuristic_verify returns {"sensitive": "yes"|"no"}. Rule- and
+            # custom-pattern entities are already regex-verified, so they are
+            # kept regardless; verification mainly filters NER spans.
+            is_sensitive = (
+                result.get("sensitive") == "yes"
+                or entity.get("source") in ("rule", "custom")
+            )
+            if is_sensitive:
                 verified.append({
                     "text": span,
                     "start": entity.get("start", 0),
@@ -412,8 +422,8 @@ class IntegratedPipeline:
 
     def generate_timing_report(self) -> str:
         """Generate a human-readable timing report."""
-        if not self.timing:
+        if not self.timing or self.timing.get("start") is None:
             return "Timing not enabled"
 
-        total_time = time.time() - self.timing
+        total_time = time.time() - self.timing["start"]
         return f"Pipeline execution time: {total_time:.2f}s"

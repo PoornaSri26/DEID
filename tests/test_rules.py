@@ -1,0 +1,68 @@
+"""Tests for rule-based detection patterns."""
+import re
+import pytest
+
+from pipelines.hybrid_pipeline_simple import apply_rules_simple
+
+
+def types_of(detected):
+    return {d["type"] for d in detected}
+
+
+def test_phone_10_digit():
+    _, detected = apply_rules_simple("Call 9848012345 for results.")
+    phones = [d for d in detected if d["type"] == "phone_number"]
+    assert len(phones) == 1
+    assert phones[0]["text"] == "9848012345"
+
+
+def test_phone_spaced():
+    _, detected = apply_rules_simple("Ph 98480 12345.")
+    phones = [d for d in detected if d["type"] == "phone_number"]
+    assert len(phones) == 1
+
+
+def test_phone_country_code():
+    _, detected = apply_rules_simple("Call +91-98480-12345 now.")
+    phones = [d for d in detected if d["type"] == "phone_number"]
+    assert len(phones) >= 1
+
+
+def test_date_formats():
+    for text in ["on 01/15/2026", "on 2026-03-12", "on 12 March 2026", "on March 12, 2026"]:
+        _, detected = apply_rules_simple(text)
+        assert "date" in types_of(detected), f"no date detected in: {text}"
+
+
+def test_email():
+    _, detected = apply_rules_simple("Email john@clinic.edu please.")
+    assert "email_address" in types_of(detected)
+
+
+def test_id_number():
+    _, detected = apply_rules_simple("MRN 987654321 noted.")
+    assert "id_number" in types_of(detected)
+
+
+def test_human_name():
+    _, detected = apply_rules_simple("John Doe was admitted.")
+    names = [d for d in detected if d["type"] == "human_name"]
+    assert len(names) == 1
+    assert names[0]["text"] == "John Doe"
+
+
+def test_replacement_preserves_positions():
+    text = "John Doe admitted on 01/15/2026, MRN 987654321."
+    final, detected = apply_rules_simple(text)
+    # No original PII digits should remain for detected spans
+    for d in detected:
+        assert d["text"] not in final or d["type"] == "human_name"
+    # Detected spans must reference valid original-text slices
+    for d in detected:
+        assert text[d["start"]:d["end"]] == d["text"]
+
+
+def test_no_false_positive_on_clean_text():
+    _, detected = apply_rules_simple("The patient took 500mg of medication daily.")
+    # 500mg is not a phone/id; dose numbers shouldn't be flagged as phone
+    assert not any(d["type"] == "phone_number" for d in detected)

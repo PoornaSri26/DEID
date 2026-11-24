@@ -137,31 +137,15 @@ def compute_micro_macro_f1(
     
     # --- Macro-averaged ---
     # Compute F1 per category, then average
-    category_f1s = defaultdict(list)
     all_categories = set()
-    
+
     for gold, pred in zip(all_gold, all_pred):
-        gold_by_cat = defaultdict(list)
-        pred_by_cat = defaultdict(list)
-        
         for s, e, t in gold:
-            gold_by_cat[t].append((s, e))
             all_categories.add(t)
-        
         for s, e, t in pred:
-            pred_by_cat[t].append((s, e))
             all_categories.add(t)
-    
-    # Compute F1 for each category
-    category_precisions = {}
-    category_recalls = {}
-    category_f1s = {}
-    
-    for cat in all_categories:
-        cat_gold = [item for sublist in gold_by_cat.values() for item in sublist if ...]  # simplified
-        # Actually, let me redo this properly
-    
-    # Proper per-category computation
+
+    # Per-category computation
     category_metrics = {}
     
     for cat in all_categories:

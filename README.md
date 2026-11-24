@@ -64,12 +64,16 @@ deid_project/
 │   ├── meddies-pii/        # English + Tamil splits
 │   └── i2b2/              # (after DUA approval)
 ├── pipelines/              # 5-stage hybrid pipeline
-│   ├── rules.py           # Regex patterns for structured identifiers
-│   ├── giner_ner.py       # GLiNER NER fine-tuned on Meddies-PII
-│   ├── llm_verifier.py    # Local Llama 3.1 8B verification
-│   └── hybrid_pipeline.py # Orchestrator combining all stages
+│   ├── rules.py                        # Regex patterns for structured identifiers
+│   ├── giner_ner.py                    # GLiNER NER (optional, falls back to rules)
+│   ├── hybrid_pipeline_simple.py       # Rule application helper
+│   ├── hybrid_pipeline_integrated.py   # Canonical 5-stage orchestrator
+│   └── hybrid_pipeline.py              # Earlier hybrid variant
+├── scripts/
+│   └── download_meddies.py             # Meddies-PII v2 downloader
 ├── src/                    # Source code and experiments
-│   ├── evaluation/        # Metrics, ablations, error analysis
+│   ├── evaluation/        # Metrics (metrics.py) and evaluation runner
+│   ├── run_demo.py        # Demo entry point
 │   └── utils/             # Label mapping, data utilities
 ├── notebooks/              # Jupyter notebooks for exploration
 │   ├── 01_data_exploration.ipynb
@@ -99,10 +103,11 @@ deid_project/
 CC BY-NC 4.0 (non-commercial research use) - same as Meddies-PII v2
 
 ## Getting Started
-1. Install: `pip install -r requirements.txt`
-2. Download Meddies-PII: `python download_meddies.py`
-3. Run baselines: `python -m src.evaluation.baselines`
-4. Run hybrid pipeline: `python pipelines/hybrid_pipeline.py --text "sample clinical note"`
+1. Install: `pip install -r requirements.txt` (core is lightweight; NER/LLM extras are optional — pipeline falls back to rule-based mode)
+2. Download Meddies-PII: `python scripts/download_meddies.py`
+3. Run demo: `python src/run_demo.py`
+4. De-identify text via CLI: `python -m deid "sample clinical note" --lang en`
+5. Run evaluation: `python src/evaluation/run_evaluation.py`
 
 ## Important Notes
 - i2b2 access requires separate Data Use Agreement (per-person, Harvard DBMI portal)
