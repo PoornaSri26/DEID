@@ -97,6 +97,28 @@ def run_pipeline_on_texts(texts, language='en', use_giner=True, use_llm=False, e
     return results, timing_data
 
 
+def _mlflow_log(results):
+    """Optionally log evaluation results to MLflow. No-op if mlflow missing."""
+    try:
+        import mlflow
+    except ImportError:
+        return
+    try:
+        mlflow.set_tracking_uri("sqlite:///mlruns.db")
+        with mlflow.start_run(run_name="meddies-pii-eval"):
+            for cfg_name, cfg in results["all_results"].items():
+                for lang in ("english", "tamil"):
+                    lang_res = cfg[lang]["results"]
+                    mlflow.log_metrics({
+                        f"{lang}_entities": sum(r["total_entities"] for r in lang_res),
+                        f"{lang}_replacements": sum(r["replacements_made"] for r in lang_res),
+                        f"{lang}_avg_time_s": cfg[lang]["avg_timing"],
+                    }, step=0)
+                mlflow.log_param("config", cfg_name)
+    except Exception as e:
+        print(f"[WARN] MLflow logging skipped: {e}")
+
+
 def run_evaluation():
     """Run the full Meddies-PII English + Tamil evaluation."""
     print("=" * 70)
@@ -236,6 +258,8 @@ def run_evaluation():
     print()
 
     # Return results for further use
+    _mlflow_log(results)
+
     return {
         "configs_tested": list(all_results.keys()),
         "english_samples": len(en_texts),

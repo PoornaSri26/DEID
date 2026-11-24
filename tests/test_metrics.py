@@ -6,6 +6,7 @@ from src.evaluation.metrics import (
     compute_per_category_f1,
     compute_clinical_utility_survival,
     compute_false_redaction_rate,
+    compute_false_negative_rate,
 )
 
 
@@ -61,6 +62,14 @@ def test_false_redaction_rate():
 
     res_none = compute_false_redaction_rate([], [])
     assert res_none["false_redaction_rate"] == 0.0
+
+
+def test_false_negative_rate():
+    gold = [(0, 4, "name"), (10, 14, "date")]
+    pred = [(0, 4, "name")]  # missed the date
+    res = compute_false_negative_rate(gold, pred)
+    assert res["tp"] == 1 and res["fn"] == 1
+    assert res["false_negative_rate"] == 0.5
 
 
 def test_clinical_utility_survival():

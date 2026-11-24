@@ -223,6 +223,29 @@ def compute_false_redaction_rate(
     }
 
 
+def compute_false_negative_rate(
+    gold_entities: List[Tuple[int, int, str]],
+    pred_entities: List[Tuple[int, int, str]],
+    match_type: str = "entity",
+) -> Dict[str, Any]:
+    """
+    Compute false negative rate: fraction of gold PHI spans missed.
+
+    FNR = FN / (TP + FN) = 1 - recall at the span level.
+    """
+    metrics = compute_entity_metrics(gold_entities, pred_entities, match_type)
+    tp, fn = metrics["tp"], metrics["fn"]
+    total_gold = tp + fn
+
+    return {
+        "false_negative_rate": round(fn / total_gold, 4) if total_gold > 0 else 0.0,
+        "tp": tp,
+        "fp": metrics["fp"],
+        "fn": fn,
+        "total_gold": total_gold,
+    }
+
+
 def compute_clinical_utility_survival(
     gold_text: str,
     deidentified_text: str,
