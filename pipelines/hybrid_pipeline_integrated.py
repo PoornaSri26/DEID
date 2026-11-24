@@ -384,6 +384,7 @@ class IntegratedPipeline:
             "email_address": "[REDACTED_EMAIL]",
             "address": "[REDACTED_ADDRESS]",
             "company_name": "[REDACTED_COMPANY]",
+            "age": "[REDACTED_AGE]",
         }
         return mapping.get(entity_type, "[REDACTED]")
 

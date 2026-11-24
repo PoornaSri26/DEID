@@ -70,6 +70,43 @@ def test_phone_7_digit():
     assert phones[0]["text"] == "555-0199"
 
 
+def test_organization_name():
+    _, detected = apply_rules_simple("Admitted to Yashoda Hospital yesterday.")
+    orgs = [d for d in detected if d["type"] == "company_name"]
+    assert len(orgs) == 1
+    assert orgs[0]["text"] == "Yashoda Hospital"
+
+
+def test_org_beats_name_on_same_span():
+    _, detected = apply_rules_simple("Admitted to Yashoda Hospital, Hyderabad.")
+    spans = {(d["start"], d["end"]): d["type"] for d in detected}
+    # The hospital span must be company_name, not human_name
+    assert any(t == "company_name" for t in spans.values())
+    assert not any(t == "human_name" and "Hospital" in str(s) for s, t in spans.items())
+
+
+def test_city_detection():
+    _, detected = apply_rules_simple("Patient from Chennai visited.")
+    assert "address" in types_of(detected)
+
+
+def test_age_detection():
+    _, detected = apply_rules_simple("Ravi Teja, 52 years old, admitted.")
+    ages = [d for d in detected if d["type"] == "age"]
+    assert len(ages) == 1
+
+
+def test_tamil_month_date():
+    _, detected = apply_rules_simple("நோயாளி 12 மார்ச் 2026-இல் வந்தார்.")
+    assert "date" in types_of(detected)
+
+
+def test_tamil_name_after_marker():
+    _, detected = apply_rules_simple("நோயாளி ஜான் ட Whitehead வந்தார்.")
+    names = [d for d in detected if d["type"] == "human_name"]
+    assert len(names) >= 1
+
+
 def test_replacement_preserves_positions():
     text = "John Doe admitted on 01/15/2026, MRN 987654321."
     final, detected = apply_rules_simple(text)

@@ -190,6 +190,95 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
 
     
 
+    # Organization / hospital names: Capitalized words ending in a facility suffix
+    org_pattern = r'\b[A-Z][A-Za-z&]+(?:\s+[A-Z][A-Za-z&]+)*\s+(?:Hospital|Clinic|Medical\s+Center|Healthcare|Health\s+Center|Nursing\s+Home|Diagnostics?|Pharmacy)\b'
+    for m in re.finditer(org_pattern, text):
+        # No containment pre-check: the name detector may already hold an
+        # identical span as human_name; the overlap dedup below resolves it
+        # in favour of the higher-confidence company_name entity.
+        detected.append({
+            "text": m.group(0),
+            "start": m.start(),
+            "end": m.end(),
+            "type": "company_name",
+            "confidence": 0.9,
+            "source": "rule"
+        })
+
+    # City / location names: known Indian cities + capitalized word after
+    # location prepositions (in/at/from/to/near)
+    city_names = [
+        "Hyderabad", "Chennai", "Mumbai", "Delhi", "New Delhi", "Bangalore",
+        "Bengaluru", "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Lucknow",
+        "Chandigarh", "Kochi", "Coimbatore", "Indore", "Nagpur",
+        "Visakhapatnam", "Vijayawada", "Madurai", "Trichy", "Salem",
+        "Warangal", "Guntur", "Nellore", "Kurnool", "Mangalore", "Mysore",
+    ]
+    city_pattern = r'\b(?:' + "|".join(city_names) + r')\b'
+    loc_prep_pattern = r'\b(?:in|at|from|to|near)\s+([A-Z][a-z]{2,})\b'
+    for m in re.finditer(city_pattern, text):
+        detected.append({
+            "text": m.group(0),
+            "start": m.start(),
+            "end": m.end(),
+            "type": "address",
+            "confidence": 0.9,
+            "source": "rule"
+        })
+    for m in re.finditer(loc_prep_pattern, text):
+        if not any(m.start(1) >= d["start"] and m.end(1) <= d["end"] for d in detected):
+            detected.append({
+                "text": m.group(1),
+                "start": m.start(1),
+                "end": m.end(1),
+                "type": "address",
+                "confidence": 0.6,
+                "source": "rule"
+            })
+
+    # Ages: "52 years old", "52-year-old", "52 y/o"
+    age_pattern = r'\b\d{1,3}\s*[-\s]?(?:years?|yrs?)\s*[-\s]?old\b|\b\d{1,3}\s*y/?o\b'
+    for m in re.finditer(age_pattern, text, re.IGNORECASE):
+        if not any(m.start() >= d["start"] and m.end() <= d["end"] for d in detected):
+            detected.append({
+                "text": m.group(0),
+                "start": m.start(),
+                "end": m.end(),
+                "type": "age",
+                "confidence": 0.9,
+                "source": "rule"
+            })
+
+    # Tamil-script person names after patient/doctor markers
+    # (e.g. "நோயாளி ஜான் ட" -> "ஜான் ட"). Regex cannot distinguish Tamil
+    # names from common nouns, so this is marker-context only.
+    ta_name_pattern = r'(?:நோயாளி|மருத்துவர்|டாக்டர்)\s+((?:[஀-௿]+\s+){0,2}[஀-௿]+)'
+    for m in re.finditer(ta_name_pattern, text):
+        name_text = m.group(1).strip()
+        lead = len(m.group(1)) - len(m.group(1).lstrip())
+        if not any(m.start(1) + lead >= d["start"] and m.start(1) + lead + len(name_text) <= d["end"] for d in detected):
+            detected.append({
+                "text": name_text,
+                "start": m.start(1) + lead,
+                "end": m.start(1) + lead + len(name_text),
+                "type": "human_name",
+                "confidence": 0.8,
+                "source": "rule"
+            })
+
+    # Tamil month-name dates: "12 மார்ச் 2026"
+    ta_months = "ஜனவரி|பிப்ரவரி|மார்ச்|ஏப்ரல்|மே|ஜூன்|ஜூலை|ஆகஸ்ட்|செப்டம்பர்|அக்டோபர்|நவம்பர்|டிசம்பர்"
+    ta_date_pattern = r'(\d{1,2}\s+(?:' + ta_months + r')\s+\d{4})'
+    for m in re.finditer(ta_date_pattern, text):
+        if not any(m.start() >= d["start"] and m.end() <= d["end"] for d in detected if d["type"] == "date"):
+            detected.append({
+                "text": m.group(1),
+                "start": m.start(),
+                "end": m.end(),
+                "type": "date",
+                "source": "rule"
+            })
+
     # Also match three-word names with middle initial: "Margaret R. Thompson"
     # Pattern: First [Middle.] Last
     mi_pattern = r'([A-Z][a-z]+\s+[A-Z]\.?\s+[A-Z][a-z]+)'
@@ -218,7 +307,7 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
     # then longest span; drop anything overlapping an already-kept entity.
     # Prevents e.g. "+91-98480-12345" and its inner "98480-12345" both
     # being replaced (which would corrupt positions).
-    detected.sort(key=lambda d: (d["start"], -(d["end"] - d["start"])))
+    detected.sort(key=lambda d: (d["start"], -(d["end"] - d["start"]), -(d.get("confidence") or 0)))
     deduped = []
     for d in detected:
         if any(d["start"] < k["end"] and d["end"] > k["start"] for k in deduped):
@@ -238,7 +327,11 @@ def apply_rules_simple(text: str) -> Tuple[str, List[Dict[str, str]]]:
             "phone_number": "[PHONE]",
             "date": "[DATE]",
             "email_address": "[EMAIL]",
-            "id_number": "[ID]"
+            "id_number": "[ID]",
+            "human_name": "[NAME]",
+            "company_name": "[ORG]",
+            "address": "[ADDRESS]",
+            "age": "[AGE]"
         }
         placeholder = placeholders.get(d["type"], "[REDACTED]")
 
